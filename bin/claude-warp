@@ -3,21 +3,27 @@
 # Claude Warp - Fast model switching for Claude Code
 # Quick switch when you run out of quota
 
+VERSION="0.1.0"
+
 set -e
 
 SETTINGS_FILE="$HOME/.claude/settings.json"
 PORT=8080
 
-# Colors
+# Colors (fallback if gum not available)
 R='\033[0;31m'
 G='\033[0;32m'
 Y='\033[1;33m'
-B='\033[0;34m'
 C='\033[0;36m'
 N='\033[0m'
 
 # Clean exit on Ctrl+C
-trap 'echo -e "\n${Y}Bye!${N}"; exit 0' INT TERM
+trap 'echo ""; exit 0' INT TERM
+
+# Check if proxy is running
+is_proxy_running() {
+    lsof -i :$PORT &>/dev/null
+}
 
 # Ensure settings file exists
 ensure_settings() {
@@ -25,8 +31,8 @@ ensure_settings() {
     [[ -f "$SETTINGS_FILE" ]] || echo '{}' > "$SETTINGS_FILE"
 }
 
-# Get current status (returns string)
-get_status() {
+# Get current model (returns string)
+get_model() {
     if [[ ! -f "$SETTINGS_FILE" ]]; then
         echo "Native Claude API"
         return
@@ -42,18 +48,83 @@ get_status() {
     fi
 }
 
+# Show status
+status() {
+    local model=$(get_model)
+    local proxy_status
+
+    if is_proxy_running; then
+        proxy_status="● running"
+    else
+        proxy_status="○ stopped"
+    fi
+
+    gum style --foreground 212 "Model: $model"
+    if is_proxy_running; then
+        gum style --foreground 114 "Proxy: $proxy_status (port $PORT)"
+    else
+        gum style --foreground 203 "Proxy: $proxy_status (port $PORT)"
+    fi
+}
+
+# Start proxy
+start_proxy() {
+    if is_proxy_running; then
+        gum style --foreground 214 "Proxy already running on :$PORT"
+        return 0
+    fi
+    gum style --foreground 117 "Starting proxy on :$PORT..."
+    if command -v osascript &>/dev/null; then
+        osascript -e "tell application \"Terminal\" to do script \"npx antigravity-claude-proxy start --port $PORT\""
+        gum style --foreground 114 "✓ Proxy started in new Terminal"
+    else
+        nohup npx antigravity-claude-proxy start --port $PORT > /tmp/claude-warp-proxy.log 2>&1 &
+        gum style --foreground 114 "✓ Proxy started (log: /tmp/claude-warp-proxy.log)"
+    fi
+}
+
+# Stop proxy
+stop_proxy() {
+    if is_proxy_running; then
+        kill $(lsof -t -i :$PORT) 2>/dev/null
+        gum style --foreground 114 "✓ Proxy stopped"
+    else
+        gum style --foreground 214 "No proxy running on :$PORT"
+    fi
+}
+
 # Switch to native
-native() {
+switch_native() {
     ensure_settings
     local tmp=$(jq 'del(.env.ANTHROPIC_BASE_URL, .env.ANTHROPIC_AUTH_TOKEN, .env.ANTHROPIC_MODEL) |
                     if .env == {} then del(.env) else . end' "$SETTINGS_FILE")
     echo "$tmp" > "$SETTINGS_FILE"
-    echo -e "${G}✓ Switched to Native Claude API${N}"
+    gum style --foreground 114 "✓ Switched to Native Claude API"
+
+    # Ask to stop proxy if running
+    if is_proxy_running; then
+        if gum confirm "Stop proxy server?"; then
+            stop_proxy
+        fi
+    fi
 }
 
 # Switch to proxy model
-proxy() {
+switch_proxy() {
     local model=$1
+
+    # Check if proxy is running
+    if ! is_proxy_running; then
+        gum style --foreground 214 "Proxy not running"
+        if gum confirm "Start proxy server?"; then
+            start_proxy
+            sleep 1
+        else
+            gum style --foreground 203 "Aborted. Proxy required for this model."
+            return 1
+        fi
+    fi
+
     ensure_settings
     local tmp=$(jq --arg m "$model" --arg p "$PORT" '
         .env.ANTHROPIC_AUTH_TOKEN = "test" |
@@ -61,93 +132,59 @@ proxy() {
         .env.ANTHROPIC_MODEL = $m
     ' "$SETTINGS_FILE")
     echo "$tmp" > "$SETTINGS_FILE"
-    echo -e "${C}✓ Switched to${N} ${Y}$model${N}"
+    gum style --foreground 114 "✓ Switched to $model"
 }
 
 # Interactive menu
 menu() {
     echo ""
-    echo -e "${C}Claude Warp${N} - Current: ${Y}$(get_status)${N}"
+    gum style --border double --padding "0 1" --border-foreground 212 "Claude Warp"
+    echo ""
+    status
     echo ""
 
-    PS3=$'\nSelect: '
-    options=(
-        "sonnet     → Claude Sonnet 4.5 (thinking)"
-        "opus       → Claude Opus 4.5 (thinking)"
-        "claude     → Claude Sonnet 4.5 (no thinking)"
-        "gemini     → Gemini 3 Flash"
-        "gemini-pro → Gemini 3 Pro (high)"
-        "native     → Native Claude API"
-        "---"
-        "accounts   → Manage Google accounts"
-        "proxy      → Start/Stop proxy server"
-        "quit"
-    )
+    local choice=$(gum choose \
+        "sonnet      → Claude Sonnet 4.5 (thinking)" \
+        "opus        → Claude Opus 4.5 (thinking)" \
+        "claude      → Claude Sonnet 4.5 (no thinking)" \
+        "gemini      → Gemini 3 Flash" \
+        "gemini-pro  → Gemini 3 Pro (high)" \
+        "native      → Native Claude API" \
+        "accounts    → Manage Google accounts" \
+        "proxy       → Start/Stop proxy server" \
+        "quit")
 
-    select opt in "${options[@]}"; do
-        case $REPLY in
-            1) proxy "claude-sonnet-4-5-thinking"; break ;;
-            2) proxy "claude-opus-4-5-thinking"; break ;;
-            3) proxy "claude-sonnet-4-5"; break ;;
-            4) proxy "gemini-3-flash"; break ;;
-            5) proxy "gemini-3-pro-high"; break ;;
-            6) native; break ;;
-            7) ;; # separator, do nothing
-            8) accounts_menu; menu ;;
-            9) proxy_menu; menu ;;
-            10) echo -e "${Y}Bye!${N}"; exit 0 ;;
-            *) echo -e "${R}Invalid option${N}" ;;
-        esac
-    done
+    case "$choice" in
+        sonnet*)      switch_proxy "claude-sonnet-4-5-thinking" ;;
+        opus*)        switch_proxy "claude-opus-4-5-thinking" ;;
+        claude*)      switch_proxy "claude-sonnet-4-5" ;;
+        gemini-pro*)  switch_proxy "gemini-3-pro-high" ;;
+        gemini*)      switch_proxy "gemini-3-flash" ;;
+        native*)      switch_native ;;
+        accounts*)    accounts_menu; menu ;;
+        proxy*)       proxy_menu; menu ;;
+        quit|"")      exit 0 ;;
+    esac
 }
 
 # Proxy control menu
 proxy_menu() {
     echo ""
-    echo -e "${C}Proxy Control${N}"
+    gum style --foreground 117 "Proxy Control"
+    if is_proxy_running; then
+        gum style --foreground 114 "Status: ● running"
+    else
+        gum style --foreground 203 "Status: ○ stopped"
+    fi
     echo ""
 
-    PS3=$'\nSelect action: '
-    options=(
-        "start → Start proxy server"
-        "stop  → Stop proxy server"
-        "back"
-    )
+    local choice=$(gum choose "start" "stop" "back")
 
-    select opt in "${options[@]}"; do
-        case $REPLY in
-            1) echo ""; start; break ;;
-            2) echo ""; stop; break ;;
-            3) return ;;
-            *) echo -e "${R}Invalid option${N}" ;;
-        esac
-    done
-}
-
-# Start proxy
-start() {
-    if lsof -i :$PORT &>/dev/null; then
-        echo -e "${Y}Proxy already running on :$PORT${N}"
-        return
-    fi
-    echo -e "${C}Starting proxy on :$PORT...${N}"
-    if command -v osascript &>/dev/null; then
-        osascript -e "tell application \"Terminal\" to do script \"npx antigravity-claude-proxy start --port $PORT\""
-        echo -e "${G}✓ Proxy started in new Terminal${N}"
-    else
-        nohup npx antigravity-claude-proxy start --port $PORT > /tmp/claude-warp-proxy.log 2>&1 &
-        echo -e "${G}✓ Proxy started (log: /tmp/claude-warp-proxy.log)${N}"
-    fi
-}
-
-# Stop proxy
-stop() {
-    if lsof -i :$PORT &>/dev/null; then
-        kill $(lsof -t -i :$PORT) 2>/dev/null
-        echo -e "${G}✓ Proxy stopped${N}"
-    else
-        echo -e "${Y}No proxy running on :$PORT${N}"
-    fi
+    case "$choice" in
+        start) start_proxy ;;
+        stop)  stop_proxy ;;
+        back|"") return ;;
+    esac
 }
 
 # Account management
@@ -156,7 +193,7 @@ accounts() {
         add|a)    npx antigravity-claude-proxy accounts add ;;
         list|l)   npx antigravity-claude-proxy accounts list ;;
         verify|v) npx antigravity-claude-proxy accounts verify ;;
-        limits)   curl -s "http://localhost:$PORT/account-limits?format=table" 2>/dev/null || echo -e "${R}Proxy not running${N}" ;;
+        limits)   curl -s "http://localhost:$PORT/account-limits?format=table" 2>/dev/null || gum style --foreground 203 "Proxy not running" ;;
         "")       accounts_menu ;;
         *)        npx antigravity-claude-proxy accounts list ;;
     esac
@@ -165,33 +202,28 @@ accounts() {
 # Account management menu
 accounts_menu() {
     echo ""
-    echo -e "${C}Account Manager${N}"
+    gum style --foreground 117 "Account Manager"
     echo ""
 
-    PS3=$'\nSelect action: '
-    options=(
-        "list   → Show all accounts"
-        "add    → Add new Google account (OAuth)"
-        "verify → Verify all accounts"
-        "limits → Check quota limits (requires proxy running)"
-        "back"
-    )
+    local choice=$(gum choose \
+        "list    → Show all accounts" \
+        "add     → Add new Google account (OAuth)" \
+        "verify  → Verify all accounts" \
+        "limits  → Check quota limits" \
+        "back")
 
-    select opt in "${options[@]}"; do
-        case $REPLY in
-            1) echo ""; npx antigravity-claude-proxy accounts list; break ;;
-            2) echo ""; npx antigravity-claude-proxy accounts add; break ;;
-            3) echo ""; npx antigravity-claude-proxy accounts verify; break ;;
-            4) echo ""; accounts limits; break ;;
-            5) echo -e "${Y}Back${N}"; return ;;
-            *) echo -e "${R}Invalid option${N}" ;;
-        esac
-    done
+    case "$choice" in
+        list*)   echo ""; npx antigravity-claude-proxy accounts list ;;
+        add*)    echo ""; npx antigravity-claude-proxy accounts add ;;
+        verify*) echo ""; npx antigravity-claude-proxy accounts verify ;;
+        limits*) echo ""; accounts limits ;;
+        back|"") return ;;
+    esac
 }
 
 # Help
 help() {
-    echo "Claude Warp - Fast model switching"
+    echo "Claude Warp v$VERSION - Fast model switching"
     echo ""
     echo "Usage: claude-warp [command]"
     echo ""
@@ -207,6 +239,7 @@ help() {
     echo "Proxy Control:"
     echo "  start         Start proxy server"
     echo "  stop          Stop proxy server"
+    echo "  status        Show current status"
     echo ""
     echo "Accounts:"
     echo "  acc           Interactive account manager"
@@ -221,20 +254,21 @@ help() {
 # Main
 case "${1:-}" in
     "")           menu ;;
-    n|native)     native ;;
-    s|sonnet)     proxy "claude-sonnet-4-5-thinking" ;;
-    o|opus)       proxy "claude-opus-4-5-thinking" ;;
-    c|claude)     proxy "claude-sonnet-4-5" ;;
-    g|gemini)     proxy "gemini-3-flash" ;;
-    gp)           proxy "gemini-3-pro-high" ;;
-    gl)           proxy "gemini-3-pro-low" ;;
-    start)        start ;;
-    stop)         stop ;;
+    n|native)     switch_native ;;
+    s|sonnet)     switch_proxy "claude-sonnet-4-5-thinking" ;;
+    o|opus)       switch_proxy "claude-opus-4-5-thinking" ;;
+    c|claude)     switch_proxy "claude-sonnet-4-5" ;;
+    g|gemini)     switch_proxy "gemini-3-flash" ;;
+    gp)           switch_proxy "gemini-3-pro-high" ;;
+    gl)           switch_proxy "gemini-3-pro-low" ;;
+    start)        start_proxy ;;
+    stop)         stop_proxy ;;
     acc|accounts) accounts "$2" ;;
-    status)       echo -e "Current: ${Y}$(get_status)${N}" ;;
+    status)       status ;;
+    -v|--version) echo "claude-warp v$VERSION" ;;
     h|help|-h|--help) help ;;
     *)
-        echo -e "${R}Unknown: $1${N}"
+        gum style --foreground 203 "Unknown: $1"
         help
         exit 1
         ;;

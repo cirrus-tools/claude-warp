@@ -15,11 +15,12 @@ brew install claude-warp
 
 ## Dependencies
 
+- `gum` - Interactive UI
 - `jq` - JSON processing
 - `node` - For npx to run antigravity-claude-proxy
 
 ```bash
-brew install jq node
+brew install gum jq node
 npm install -g antigravity-claude-proxy
 ```
 
