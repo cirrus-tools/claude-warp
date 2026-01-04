@@ -3,7 +3,7 @@
 # Claude Warp - Fast model switching for Claude Code
 # Quick switch when you run out of quota
 
-VERSION="0.1.0"
+VERSION="0.2.0"
 
 set -e
 
