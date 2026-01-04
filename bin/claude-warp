@@ -75,8 +75,8 @@ start() {
         osascript -e "tell application \"Terminal\" to do script \"npx antigravity-claude-proxy start --port $PORT\""
         echo -e "${G}✓ Proxy started in new Terminal${N}"
     else
-        nohup npx antigravity-claude-proxy start --port $PORT > /tmp/cw-proxy.log 2>&1 &
-        echo -e "${G}✓ Proxy started (log: /tmp/cw-proxy.log)${N}"
+        nohup npx antigravity-claude-proxy start --port $PORT > /tmp/claude-warp-proxy.log 2>&1 &
+        echo -e "${G}✓ Proxy started (log: /tmp/claude-warp-proxy.log)${N}"
     fi
 }
 
@@ -104,7 +104,7 @@ accounts() {
 help() {
     echo "Claude Warp - Fast model switching"
     echo ""
-    echo "Usage: cw [command]"
+    echo "Usage: claude-warp [command]"
     echo ""
     echo "Switch Models:"
     echo "  n, native     Native Claude API (restore)"
