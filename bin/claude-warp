@@ -70,7 +70,7 @@ menu() {
     echo -e "${C}Claude Warp${N} - Current: ${Y}$(get_status)${N}"
     echo ""
 
-    PS3=$'\nSelect model: '
+    PS3=$'\nSelect: '
     options=(
         "sonnet     → Claude Sonnet 4.5 (thinking)"
         "opus       → Claude Opus 4.5 (thinking)"
@@ -78,6 +78,9 @@ menu() {
         "gemini     → Gemini 3 Flash"
         "gemini-pro → Gemini 3 Pro (high)"
         "native     → Native Claude API"
+        "---"
+        "accounts   → Manage Google accounts"
+        "proxy      → Start/Stop proxy server"
         "quit"
     )
 
@@ -89,7 +92,33 @@ menu() {
             4) proxy "gemini-3-flash"; break ;;
             5) proxy "gemini-3-pro-high"; break ;;
             6) native; break ;;
-            7) echo -e "${Y}Bye!${N}"; exit 0 ;;
+            7) ;; # separator, do nothing
+            8) accounts_menu; menu ;;
+            9) proxy_menu; menu ;;
+            10) echo -e "${Y}Bye!${N}"; exit 0 ;;
+            *) echo -e "${R}Invalid option${N}" ;;
+        esac
+    done
+}
+
+# Proxy control menu
+proxy_menu() {
+    echo ""
+    echo -e "${C}Proxy Control${N}"
+    echo ""
+
+    PS3=$'\nSelect action: '
+    options=(
+        "start → Start proxy server"
+        "stop  → Stop proxy server"
+        "back"
+    )
+
+    select opt in "${options[@]}"; do
+        case $REPLY in
+            1) echo ""; start; break ;;
+            2) echo ""; stop; break ;;
+            3) return ;;
             *) echo -e "${R}Invalid option${N}" ;;
         esac
     done
@@ -121,14 +150,43 @@ stop() {
     fi
 }
 
-# Account management shortcuts
+# Account management
 accounts() {
     case "$1" in
-        add|a)  npx antigravity-claude-proxy accounts add ;;
-        list|l) npx antigravity-claude-proxy accounts list ;;
+        add|a)    npx antigravity-claude-proxy accounts add ;;
+        list|l)   npx antigravity-claude-proxy accounts list ;;
         verify|v) npx antigravity-claude-proxy accounts verify ;;
-        *) npx antigravity-claude-proxy accounts list ;;
+        limits)   curl -s "http://localhost:$PORT/account-limits?format=table" 2>/dev/null || echo -e "${R}Proxy not running${N}" ;;
+        "")       accounts_menu ;;
+        *)        npx antigravity-claude-proxy accounts list ;;
     esac
+}
+
+# Account management menu
+accounts_menu() {
+    echo ""
+    echo -e "${C}Account Manager${N}"
+    echo ""
+
+    PS3=$'\nSelect action: '
+    options=(
+        "list   → Show all accounts"
+        "add    → Add new Google account (OAuth)"
+        "verify → Verify all accounts"
+        "limits → Check quota limits (requires proxy running)"
+        "back"
+    )
+
+    select opt in "${options[@]}"; do
+        case $REPLY in
+            1) echo ""; npx antigravity-claude-proxy accounts list; break ;;
+            2) echo ""; npx antigravity-claude-proxy accounts add; break ;;
+            3) echo ""; npx antigravity-claude-proxy accounts verify; break ;;
+            4) echo ""; accounts limits; break ;;
+            5) echo -e "${Y}Back${N}"; return ;;
+            *) echo -e "${R}Invalid option${N}" ;;
+        esac
+    done
 }
 
 # Help
@@ -151,7 +209,11 @@ help() {
     echo "  stop          Stop proxy server"
     echo ""
     echo "Accounts:"
-    echo "  acc [add|list|verify]"
+    echo "  acc           Interactive account manager"
+    echo "  acc add       Add new Google account (OAuth)"
+    echo "  acc list      List all accounts"
+    echo "  acc verify    Verify all accounts"
+    echo "  acc limits    Check quota limits"
     echo ""
     echo "No args = interactive menu"
 }

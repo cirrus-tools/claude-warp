@@ -43,9 +43,11 @@ claude-warp start        # Start proxy server
 claude-warp stop         # Stop proxy server
 
 # Account management
-claude-warp acc add      # Add Google account
-claude-warp acc list     # List accounts
-claude-warp acc verify   # Verify accounts
+claude-warp acc          # Interactive account manager
+claude-warp acc add      # Add Google account (OAuth)
+claude-warp acc list     # List all accounts
+claude-warp acc verify   # Verify all accounts
+claude-warp acc limits   # Check quota limits
 ```
 
 ### Interactive Menu
@@ -61,9 +63,26 @@ Claude Warp - Current: Native Claude API
 4) gemini     → Gemini 3 Flash
 5) gemini-pro → Gemini 3 Pro (high)
 6) native     → Native Claude API
-7) quit
+7) ---
+8) accounts   → Manage Google accounts
+9) proxy      → Start/Stop proxy server
+10) quit
 
-Select model:
+Select:
+```
+
+Running `claude-warp acc` opens the account manager:
+
+```
+Account Manager
+
+1) list   → Show all accounts
+2) add    → Add new Google account (OAuth)
+3) verify → Verify all accounts
+4) limits → Check quota limits (requires proxy running)
+5) back
+
+Select action:
 ```
 
 ## How It Works
