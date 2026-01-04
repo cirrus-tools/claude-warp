@@ -26,14 +26,16 @@ npm install -g antigravity-claude-proxy
 ## Usage
 
 ```bash
-claude-warp              # Show current status
+claude-warp              # Interactive menu
+claude-warp status       # Show current status
 
-# Switch models
+# Quick switch (CLI)
 claude-warp s            # Claude Sonnet 4.5 (thinking)
 claude-warp o            # Claude Opus 4.5 (thinking)
 claude-warp c            # Claude Sonnet 4.5 (no thinking)
 claude-warp g            # Gemini 3 Flash
 claude-warp gp           # Gemini 3 Pro (high)
+claude-warp gl           # Gemini 3 Pro (low)
 claude-warp n            # Native Claude API (restore)
 
 # Proxy control
@@ -44,6 +46,24 @@ claude-warp stop         # Stop proxy server
 claude-warp acc add      # Add Google account
 claude-warp acc list     # List accounts
 claude-warp acc verify   # Verify accounts
+```
+
+### Interactive Menu
+
+Running `claude-warp` without arguments shows an interactive menu:
+
+```
+Claude Warp - Current: Native Claude API
+
+1) sonnet     → Claude Sonnet 4.5 (thinking)
+2) opus       → Claude Opus 4.5 (thinking)
+3) claude     → Claude Sonnet 4.5 (no thinking)
+4) gemini     → Gemini 3 Flash
+5) gemini-pro → Gemini 3 Pro (high)
+6) native     → Native Claude API
+7) quit
+
+Select model:
 ```
 
 ## How It Works

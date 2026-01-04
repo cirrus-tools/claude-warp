@@ -25,10 +25,10 @@ ensure_settings() {
     [[ -f "$SETTINGS_FILE" ]] || echo '{}' > "$SETTINGS_FILE"
 }
 
-# Get current status
-status() {
+# Get current status (returns string)
+get_status() {
     if [[ ! -f "$SETTINGS_FILE" ]]; then
-        echo -e "${G}Native Claude API${N}"
+        echo "Native Claude API"
         return
     fi
 
@@ -36,9 +36,9 @@ status() {
     local model=$(jq -r '.env.ANTHROPIC_MODEL // empty' "$SETTINGS_FILE" 2>/dev/null)
 
     if [[ -z "$url" || "$url" == "null" ]]; then
-        echo -e "${G}● Native Claude API${N}"
+        echo "Native Claude API"
     else
-        echo -e "${C}● Proxy Mode${N} → ${Y}$model${N}"
+        echo "$model"
     fi
 }
 
@@ -62,6 +62,37 @@ proxy() {
     ' "$SETTINGS_FILE")
     echo "$tmp" > "$SETTINGS_FILE"
     echo -e "${C}✓ Switched to${N} ${Y}$model${N}"
+}
+
+# Interactive menu
+menu() {
+    echo ""
+    echo -e "${C}Claude Warp${N} - Current: ${Y}$(get_status)${N}"
+    echo ""
+
+    PS3=$'\nSelect model: '
+    options=(
+        "sonnet     → Claude Sonnet 4.5 (thinking)"
+        "opus       → Claude Opus 4.5 (thinking)"
+        "claude     → Claude Sonnet 4.5 (no thinking)"
+        "gemini     → Gemini 3 Flash"
+        "gemini-pro → Gemini 3 Pro (high)"
+        "native     → Native Claude API"
+        "quit"
+    )
+
+    select opt in "${options[@]}"; do
+        case $REPLY in
+            1) proxy "claude-sonnet-4-5-thinking"; break ;;
+            2) proxy "claude-opus-4-5-thinking"; break ;;
+            3) proxy "claude-sonnet-4-5"; break ;;
+            4) proxy "gemini-3-flash"; break ;;
+            5) proxy "gemini-3-pro-high"; break ;;
+            6) native; break ;;
+            7) echo -e "${Y}Bye!${N}"; exit 0 ;;
+            *) echo -e "${R}Invalid option${N}" ;;
+        esac
+    done
 }
 
 # Start proxy
@@ -107,12 +138,13 @@ help() {
     echo "Usage: claude-warp [command]"
     echo ""
     echo "Switch Models:"
-    echo "  n, native     Native Claude API (restore)"
     echo "  s, sonnet     Claude Sonnet 4.5 (thinking)"
     echo "  o, opus       Claude Opus 4.5 (thinking)"
     echo "  c, claude     Claude Sonnet 4.5 (no thinking)"
     echo "  g, gemini     Gemini 3 Flash"
     echo "  gp            Gemini 3 Pro (high)"
+    echo "  gl            Gemini 3 Pro (low)"
+    echo "  n, native     Native Claude API (restore)"
     echo ""
     echo "Proxy Control:"
     echo "  start         Start proxy server"
@@ -121,12 +153,12 @@ help() {
     echo "Accounts:"
     echo "  acc [add|list|verify]"
     echo ""
-    echo "No args = show current status"
+    echo "No args = interactive menu"
 }
 
 # Main
 case "${1:-}" in
-    "")           status ;;
+    "")           menu ;;
     n|native)     native ;;
     s|sonnet)     proxy "claude-sonnet-4-5-thinking" ;;
     o|opus)       proxy "claude-opus-4-5-thinking" ;;
@@ -137,6 +169,7 @@ case "${1:-}" in
     start)        start ;;
     stop)         stop ;;
     acc|accounts) accounts "$2" ;;
+    status)       echo -e "Current: ${Y}$(get_status)${N}" ;;
     h|help|-h|--help) help ;;
     *)
         echo -e "${R}Unknown: $1${N}"
