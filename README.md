@@ -58,16 +58,15 @@ Running `claude-warp` without arguments shows an interactive menu:
 ```
 Claude Warp - Current: Native Claude API
 
-1) sonnet     → Claude Sonnet 4.5 (thinking)
-2) opus       → Claude Opus 4.5 (thinking)
-3) claude     → Claude Sonnet 4.5 (no thinking)
-4) gemini     → Gemini 3 Flash
-5) gemini-pro → Gemini 3 Pro (high)
-6) native     → Native Claude API
-7) ---
-8) accounts   → Manage Google accounts
-9) proxy      → Start/Stop proxy server
-10) quit
+> sonnet      → Claude Sonnet 4.5 (thinking)
+  opus        → Claude Opus 4.5 (thinking)
+  claude      → Claude Sonnet 4.5 (no thinking)
+  gemini      → Gemini 3 Flash
+  gemini-pro  → Gemini 3 Pro (high)
+  native      → Native Claude API
+  accounts    → Manage Google accounts
+  proxy       → Start/Stop proxy server
+  quit
 
 Select:
 ```
@@ -77,11 +76,11 @@ Running `claude-warp acc` opens the account manager:
 ```
 Account Manager
 
-1) list   → Show all accounts
-2) add    → Add new Google account (OAuth)
-3) verify → Verify all accounts
-4) limits → Check quota limits (requires proxy running)
-5) back
+> list    → Show all accounts
+  add     → Add new Google account (OAuth)
+  verify  → Verify all accounts
+  limits  → Check quota limits
+  back
 
 Select action:
 ```
