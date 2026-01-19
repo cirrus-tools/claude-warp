@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Add `npx -y` to prevent hanging when starting proxy or managing accounts
+- Add automatic version check for `antigravity-claude-proxy` with update warnings
+
 ## [0.2.0] - 2026-01-04
 
 ## [0.1.0] - 2026-01-04

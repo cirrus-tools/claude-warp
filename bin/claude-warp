@@ -67,18 +67,48 @@ status() {
     fi
 }
 
+# Check for updates
+check_updates() {
+    # Skip if offline
+    if ! curl -s --head https://registry.npmjs.org >/dev/null; then
+        return
+    fi
+
+    # Get versions
+    local latest=$(npm view antigravity-claude-proxy version 2>/dev/null)
+    local current=$(npx -y antigravity-claude-proxy --version 2>/dev/null)
+
+    if [[ -n "$latest" && -n "$current" && "$latest" != "$current" ]]; then
+        echo ""
+        gum style --foreground 208 --border double --border-foreground 208 --padding "0 1" \
+            "Update Available!" \
+            "Current: $current" \
+            "Latest:  $latest" \
+            "" \
+            "Proxy might fail with older versions." \
+            "The script tries to auto-update via 'npx -y'," \
+            "but if issues persist, run:" \
+            "npm install -g antigravity-claude-proxy@latest"
+        echo ""
+        sleep 2
+    fi
+}
+
 # Start proxy
 start_proxy() {
     if is_proxy_running; then
         gum style --foreground 214 "Proxy already running on :$PORT"
         return 0
     fi
+    
+    check_updates
+
     gum style --foreground 117 "Starting proxy on :$PORT..."
     if command -v osascript &>/dev/null; then
-        osascript -e "tell application \"Terminal\" to do script \"npx antigravity-claude-proxy start --port $PORT\""
+        osascript -e "tell application \"Terminal\" to do script \"npx -y antigravity-claude-proxy start --port $PORT\""
         gum style --foreground 114 "✓ Proxy started in new Terminal"
     else
-        nohup npx antigravity-claude-proxy start --port $PORT > /tmp/claude-warp-proxy.log 2>&1 &
+        nohup npx -y antigravity-claude-proxy start --port $PORT > /tmp/claude-warp-proxy.log 2>&1 &
         gum style --foreground 114 "✓ Proxy started (log: /tmp/claude-warp-proxy.log)"
     fi
 }
@@ -190,12 +220,12 @@ proxy_menu() {
 # Account management
 accounts() {
     case "$1" in
-        add|a)    npx antigravity-claude-proxy accounts add ;;
-        list|l)   npx antigravity-claude-proxy accounts list ;;
-        verify|v) npx antigravity-claude-proxy accounts verify ;;
+        add|a)    npx -y antigravity-claude-proxy accounts add ;;
+        list|l)   npx -y antigravity-claude-proxy accounts list ;;
+        verify|v) npx -y antigravity-claude-proxy accounts verify ;;
         limits)   curl -s "http://localhost:$PORT/account-limits?format=table" 2>/dev/null || gum style --foreground 203 "Proxy not running" ;;
         "")       accounts_menu ;;
-        *)        npx antigravity-claude-proxy accounts list ;;
+        *)        npx -y antigravity-claude-proxy accounts list ;;
     esac
 }
 
@@ -213,9 +243,9 @@ accounts_menu() {
         "back")
 
     case "$choice" in
-        list*)   echo ""; npx antigravity-claude-proxy accounts list ;;
-        add*)    echo ""; npx antigravity-claude-proxy accounts add ;;
-        verify*) echo ""; npx antigravity-claude-proxy accounts verify ;;
+        list*)   echo ""; npx -y antigravity-claude-proxy accounts list ;;
+        add*)    echo ""; npx -y antigravity-claude-proxy accounts add ;;
+        verify*) echo ""; npx -y antigravity-claude-proxy accounts verify ;;
         limits*) echo ""; accounts limits ;;
         back|"") return ;;
     esac
