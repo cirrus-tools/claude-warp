@@ -176,6 +176,7 @@ menu() {
     local choice=$(gum choose \
         "sonnet      → Claude Sonnet 4.5 (thinking)" \
         "opus        → Claude Opus 4.5 (thinking)" \
+        "opus-4.6    → Claude Opus 4.6 (thinking)" \
         "claude      → Claude Sonnet 4.5 (no thinking)" \
         "gemini      → Gemini 3 Flash" \
         "gemini-pro  → Gemini 3 Pro (high)" \
@@ -186,6 +187,7 @@ menu() {
 
     case "$choice" in
         sonnet*)      switch_proxy "claude-sonnet-4-5-thinking" ;;
+        opus-4.6*)    switch_proxy "claude-opus-4-6-thinking" ;;
         opus*)        switch_proxy "claude-opus-4-5-thinking" ;;
         claude*)      switch_proxy "claude-sonnet-4-5" ;;
         gemini-pro*)  switch_proxy "gemini-3-pro-high" ;;
@@ -260,6 +262,7 @@ help() {
     echo "Switch Models:"
     echo "  s, sonnet     Claude Sonnet 4.5 (thinking)"
     echo "  o, opus       Claude Opus 4.5 (thinking)"
+    echo "  o4, opus4     Claude Opus 4.6 (thinking)"
     echo "  c, claude     Claude Sonnet 4.5 (no thinking)"
     echo "  g, gemini     Gemini 3 Flash"
     echo "  gp            Gemini 3 Pro (high)"
@@ -287,6 +290,7 @@ case "${1:-}" in
     n|native)     switch_native ;;
     s|sonnet)     switch_proxy "claude-sonnet-4-5-thinking" ;;
     o|opus)       switch_proxy "claude-opus-4-5-thinking" ;;
+    o4|opus4)     switch_proxy "claude-opus-4-6-thinking" ;;
     c|claude)     switch_proxy "claude-sonnet-4-5" ;;
     g|gemini)     switch_proxy "gemini-3-flash" ;;
     gp)           switch_proxy "gemini-3-pro-high" ;;
